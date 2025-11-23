@@ -1,6 +1,8 @@
 🏡 House-Price-Prediction
 Machine learning project with python language
 
+My Project-Live Demo Link: https://house-price-prediction-machine-learning-project-with-python-la.streamlit.app/
+
 This project aims to predict house prices using multiple machine learning models. We applied various preprocessing and feature engineering techniques to build robust and accurate models. The models were trained and evaluated on a real-world dataset with multiple numerical and categorical variables.Predicts the price of a house based on multiple property features such as bedrooms, bathrooms, square footage, lot size, condition, view, and zipcode.
 It uses a Random Forest Regressor with log-transformed target for better accuracy and a modern Streamlit web interface for user interaction.
 
