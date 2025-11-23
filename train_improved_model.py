@@ -10,82 +10,67 @@ import joblib
 import json
 import os
 
-# ------------------------------------------------
-# LOAD YOUR DATA
-# ------------------------------------------------
+# Load dataset
 df = pd.read_csv("data.csv")
 
-# Extract zipcode (most important feature)
-if "statezip" in df.columns:
-    df["zipcode"] = df["statezip"].str.extract(r"(\d+)$").astype(float)
+# Extract zipcode
+df["zipcode"] = df["statezip"].str.extract(r"(\d+)$").astype(float)
 
 # Drop unnecessary text columns
-drop_cols = ["date", "street", "city", "statezip", "country"]
-df = df.drop(columns=[c for c in drop_cols if c in df.columns])
+df = df.drop(columns=["date", "street", "city", "statezip", "country"])
 
 # Select features
-numeric_features = [
+features = [
     "bedrooms","bathrooms","sqft_living","sqft_lot","floors",
     "waterfront","view","condition","sqft_above","sqft_basement",
     "yr_built","yr_renovated","zipcode"
 ]
 
-numeric_features = [f for f in numeric_features if f in df.columns]
-
-# Define X and y with log-transform
-X = df[numeric_features].fillna(df[numeric_features].median())
+X = df[features].fillna(df[features].median())
 y = np.log1p(df["price"])
 
-# Train-test split
+# Split data
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-# Preprocessing + Model
-preprocessor = ColumnTransformer([
-    ("scaler", StandardScaler(), numeric_features)
-])
-
+# Smaller, lighter RandomForest model
 model = Pipeline([
-    ("preprocess", preprocessor),
+    ("scaler", StandardScaler()),
     ("rf", RandomForestRegressor(
-        n_estimators=300,
-        max_depth=22,
+        n_estimators=80,    # reduced trees
+        max_depth=15,       # limit depth
+        min_samples_leaf=5, # reduces size a lot
         random_state=42,
         n_jobs=-1
     ))
 ])
 
-# Train model
 model.fit(X_train, y_train)
 
-# Evaluate (convert back with expm1)
+# Evaluate
 y_pred = np.expm1(model.predict(X_test))
-y_test_exp = np.expm1(y_test)
+y_test_real = np.expm1(y_test)
 
-rmse = np.sqrt(mean_squared_error(y_test_exp, y_pred))
-r2 = r2_score(y_test_exp, y_pred)
+rmse = float(np.sqrt(mean_squared_error(y_test_real, y_pred)))
+r2 = float(r2_score(y_test_real, y_pred))
 
-print("\nMODEL TRAINED SUCCESSFULLY!")
-print("RMSE:", rmse)
-print("R2  :", r2)
-
-# Create output directory
+# Save folder
 os.makedirs("improved_model", exist_ok=True)
 
-# Save model
 joblib.dump(model, "improved_model/model.pkl")
 
-# Save feature importances
-rf_importance = model.named_steps["rf"].feature_importances_
-fi_df = pd.DataFrame({"feature": numeric_features, "importance": rf_importance})
-fi_df.to_csv("improved_model/feature_importances.csv", index=False)
+# Save feature importance
+fi = model.named_steps["rf"].feature_importances_
+pd.DataFrame({"feature": features, "importance": fi}).to_csv(
+    "improved_model/feature_importances.csv", index=False
+)
 
 # Save metrics
 with open("improved_model/metrics.json", "w") as f:
-    json.dump({"rmse": float(rmse), "r2": float(r2)}, f)
+    json.dump({"rmse": rmse, "r2": r2}, f)
 
-print("\nSaved:")
-print("- improved_model/model.pkl")
-print("- improved_model/feature_importances.csv")
-print("- improved_model/metrics.json")
+print("Training complete!")
+print("New model size is MUCH smaller.")
+print("RMSE:", rmse)
+print("R2:", r2)
